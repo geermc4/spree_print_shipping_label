@@ -1,0 +1,2 @@
+module SpreePrintShippingLabel
+end
