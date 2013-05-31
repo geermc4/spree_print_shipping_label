@@ -1,0 +1,5 @@
+en:
+  label: "Label"
+  api_name: "API Name"
+  unable_to_get_label: "Unable to get shipping label"
+  tax_note: "Tax ID"

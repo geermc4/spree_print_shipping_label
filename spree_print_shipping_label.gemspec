@@ -13,10 +13,13 @@ Gem::Specification.new do |s|
   s.summary     = "Adds a print button on a shipment to get shipping label"
   s.description = "Requires accounts for USPS (through endicia) and Fedex label services"
 
-  gem.files         = `git ls-files`.split($/)
+  s.files     = `git ls-files`.split($/)
+  s.require_paths = ["lib"]
 
   s.test_files = Dir["test/**/*"]
 
-  s.add_dependency "rails", "~> 3.2.13"
+  s.add_dependency "curb", "~> 0.8.3"
+  s.add_dependency "nokogiri", "~> 1.5.9"
+#  s.add_dependency "spree_active_shipping", "~> 1.2.0"
 #  s.add_dependency "fedex", "~> 3.0.0"
 end

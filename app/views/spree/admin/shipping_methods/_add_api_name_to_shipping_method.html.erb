@@ -1,0 +1,7 @@
+<div class="alpha twelve columns">
+  <%= f.field_container :api_name do %>
+    <%= f.label :api_name, t(:api_name) %><br/>
+    <%= f.text_field :api_name %>
+    <%= error_message_on :shipping_method, :api_name %>
+  <% end %>
+</div>
