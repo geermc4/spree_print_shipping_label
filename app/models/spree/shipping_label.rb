@@ -26,10 +26,11 @@ class Spree::ShippingLabel
     self.to_address1 = @order.ship_address.address1
     self.to_address2 = @order.ship_address.address2 || ""
     self.to_city = @order.ship_address.city
-    self.to_state = @order.ship_address.state_name || @order.ship_address.state.abbr
+    self.to_state = @order.ship_address.state_name || (@order.ship_address.state.nil? ? "" : @order.ship_address.state.abbr)
 
     self.to_zip = @order.ship_address.zipcode
     self.to_country = Spree::Country.find(@order.ship_address.country_id).iso
+    country = Spree::Country.find(@order.ship_address.country_id)
     self.to_residential = @order.ship_address.company.blank? ? "true" : "false"
 
     self.origin_name = Spree::PrintShippingLabel::Config[:origin_name]
@@ -59,21 +60,50 @@ class Spree::ShippingLabel
     end
   end
 
-  #private
+  def international?
+   self.to_country != "US"
+  end
+
   def usps
+    senders_customs_ref   = ""
+    importers_customs_ref = ""
     xml = []
     xml << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
-    xml << "<LabelRequest LabelType='Default' LabelSize='4X6' ImageFormat='PDF'>"
+    test_attributes = "Test='Yes'"
+    intl_attibutes = "LabelType='International' LabelSubtype='Integrated'"
+xml << "<LabelRequest #{(Spree::ActiveShipping::Config[:test_mode]) ? test_attributes : ""} #{(!international?) ? "LabelType='Default'" : intl_attibutes} LabelSize='4x6' ImageFormat='PDF'>"
+    xml << "<LabelSize>4x6</LabelSize>"
+    xml << "<ImageFormat>PDF</ImageFormat>"
     xml << "<Test>N</Test>" unless Spree::ActiveShipping::Config[:test_mode]
+    if international?
+      # Form 2976 (short form: use this form if the number of items is 5 or fewer.)
+      # Form 2976-A (long form: use this form if number of items is greater than 5.)
+      # Required when the label subtype is Integrated.
+      # Page 41
+
+      # Values
+        #Form2976
+          #MaxItems: 5
+          #FirstClassMailInternational
+          #PriorityMailInternational (when used with FlatRateEnvelope, FlatRateLegalEnvelope, FlatRatePaddedEnvelope or SmallFlatRateBox)
+        #Form2976A
+          #Max Items: 999
+          #PriorityMailInternational (when used with Parcel, MediumFlatRateBox or LargeFlatRateBox);
+          #ExpressMailInternational (when used with FlatRateEnvelope, FlatRateLegalEnvelope or Parcel)
+      # Page 151
+      # Since we only use Parcel we will always choose Form2976A
+      xml << "<IntegratedFormType>FORM2976A</IntegratedFormType>"
+    end
     xml << "<RequesterID>#{::Endicia.requester_id}</RequesterID>"
     xml << "<AccountID>#{Endicia.account_id}</AccountID>"
     xml << "<PassPhrase>#{Endicia.password}</PassPhrase>"
     xml << "<MailClass>#{self.shipping_method}</MailClass>"
     xml << "<DateAdvance>0</DateAdvance>"
-    xml << "<WeightOz>#{@weight}</WeightOz>"
+    xml << "<WeightOz>#{(@weight * 16).round(1)}</WeightOz>"
     xml << "<Stealth>FALSE</Stealth>"
     xml << "<Services InsuredMail='OFF' SignatureConfirmation='OFF' />"
-    xml << "<Value>0</Value>"
+    # has to be greater than 0
+    xml << "<Value>#{@order.amount.to_f}</Value>"
     xml << "<Description>Label for order ##{@order.number}</Description>"
     xml << "<PartnerCustomerID>#{self.user_id}</PartnerCustomerID>"
     xml << "<PartnerTransactionID>#{self.shipment_id}</PartnerTransactionID>"
@@ -81,9 +111,12 @@ class Spree::ShippingLabel
     xml << "<ToAddress1>#{self.to_address1}</ToAddress1>"
     xml << "<ToCity>#{self.to_city}</ToCity>"
     xml << "<ToState>#{self.to_state}</ToState>"
+    xml << "<ToCountry>#{Spree::Country.find(@order.ship_address.country_id).iso_name}</ToCountry>"
+    xml << "<ToCountryCode>#{self.to_country}</ToCountryCode>"
     xml << "<ToPostalCode>#{self.to_zip}</ToPostalCode>"
     xml << "<ToDeliveryPoint>00</ToDeliveryPoint>"
-    xml << "<ToPhone>#{self.to_telephone}</ToPhone>"
+    # remove any signs from the number
+    xml << "<ToPhone>#{self.to_telephone.gsub!(/\+|\.|\(|\)/, '')}</ToPhone>"
     xml << "<FromName>#{self.origin_name}</FromName>"
     xml << "<FromCompany>#{self.origin_company}</FromCompany>"
     xml << "<ReturnAddress1>#{self.origin_address}</ReturnAddress1>"
@@ -91,6 +124,56 @@ class Spree::ShippingLabel
     xml << "<FromState>#{self.origin_state}</FromState>"
     xml << "<FromPostalCode>#{self.origin_zip}</FromPostalCode>"
     xml << "<FromPhone>#{self.origin_telephone}</FromPhone>"
+    if international?
+      senders_ref         = ""
+      importers_ref       = ""
+      license_number      = ""
+      certificate_number  = ""
+      hs_tariff           = "854290"
+      xml << "<CustomsInfo>"
+      xml << "<ContentsType>Other</ContentsType>"
+      xml << "<ContentsExplanation>Merchandise</ContentsExplanation>"
+      xml << "<RestrictionType>NONE</RestrictionType>"
+      xml << "<RestrictionCommments />"
+      xml << "<SendersCustomsReference>#{senders_ref}</SendersCustomsReference>"
+      xml << "<ImportersCustomsReference>#{importers_ref}</ImportersCustomsReference>"
+      xml << "<LicenseNumber>#{license_number}</LicenseNumber>"
+      xml << "<CertificateNumber>#{certificate_number}</CertificateNumber>"
+      xml << "<InvoiceNumber>#{@order.number}</InvoiceNumber>"
+      xml << "<NonDeliveryOption>RETURN</NonDeliveryOption>"
+      xml << "<EelPfc></EelPfc>"
+      xml << "<CustomsItems>"
+      @order.line_items.each do |l|
+        # get weight of kit
+        # o.line_items.collect(&:variant).collect(&:weight).select{|w| !w.nil?}.reduce(&:+)
+        # check if it has price if not then its not a product
+        # its a config part and its already on another prod
+        if !is_part? l
+          if is_kit? l
+            weight = line_item_kit_get_weight l
+            value = line_item_kit_get_value l
+          else
+            weight = l.variant.weight.to_f
+            value = l.amount.to_f.round(2)
+          end
+          if l.amount.to_f > 0
+            xml << "<CustomsItem>"
+            # Description has a limit of 50 characters
+            xml << "<Description>#{l.product.name.slice(0..49)}</Description>"
+            xml << "<Quantity>#{l.quantity}</Quantity>"
+            # Weight can't be 0, and its measured in oz
+            xml << "<Weight>#{(((weight > 0) ? weight : 0.1) * 16).round(2)}</Weight>"
+            xml << "<Value>#{value.round(2)}</Value>"
+            xml << "<HSTariffNumber>#{hs_tariff}</HSTariffNumber>"
+            xml << "<CountryOfOrigin>US</CountryOfOrigin>"
+            xml << "</CustomsItem>"
+          end
+        end
+      end
+      xml << "</CustomsItems>"
+      xml << "</CustomsInfo>"
+    end
+
     xml << "</LabelRequest>"
 
     url = "#{Endicia.url}GetPostageLabelXML"
@@ -98,12 +181,67 @@ class Spree::ShippingLabel
     c.follow_location = true
     c.ssl_verify_host = false
     res = Nokogiri::XML::Document.parse(c.body_str)
-    img = res.search('Base64LabelImage')
-    File.open("#{@path}#{@file}",'wb') { |f| f.write Base64.decode64(img.inner_text) }
+    #img = res.search('Base64LabelImage')
+    #File.open("#{@path}#{@file}",'wb') { |f| f.write Base64.decode64(img.inner_text) }
 
-    update_tracking_number res.search("TrackingNumber").inner_text
-    pdf_crop
+    #update_tracking_number res.search("TrackingNumber").inner_text
+    #pdf_crop
+
+    if !res_error.empty?
+      Rails.logger.debug "USPS Label Error"
+      Rails.logger.debug res_error
+    else
+      if !international?
+        img = res.search('Base64LabelImage')
+        File.open("#{@path}#{@file}",'wb') { |f| f.write Base64.decode64(img.inner_text) }
+        pdf_crop "#{@path}#{@file}"
+      else
+        # Merge all the pdf parts into 1 document for easier printing
+        part_names = ""
+        res.search('Image').each do |i|
+          File.open("#{@order.number}_#{i.attr('PartNumber')}.pdf", 'wb') { |f| f.write Base64.decode64(i.inner_text) }
+          # crop pages
+          pdf_crop "#{@order.number}_#{i.attr('PartNumber')}.pdf"
+          part_names << "#{@order.number}_#{i.attr('PartNumber')}.pdf "
+        end
+        # merge pages
+        gs_options = "-q -dNOPAUSE -dBATCH -sDEVICE=pdfwrite"
+        `gs #{gs_options} -sOutputFile=#{@path}#{@file} #{part_names} && rm #{part_names}`
+      end
+      update_tracking_number res.search("TrackingNumber").inner_text
+    end
+
+
     @file
+  end
+
+    def is_part? line_item
+    ( line_item.try(:parent_id).nil? ) ? false : true
+  end
+
+  def is_kit? line_item
+    ( @order.line_items.select{|li| li[:parent_id] == line_item[:id]}.count > 0 ) ? true : false
+  end
+
+  def line_item_kit_get_weight line_item
+    if !is_kit?(line_item)
+      return false
+    end
+    kit_weight = []
+    @order.line_items.select{|li| li[:parent_id] == line_item[:id]}.each{ |li|
+      if !li.variant[:weight].nil?
+        kit_weight << li.variant[:weight] * li[:quantity]
+      end
+      kit_weight << 0
+    }
+    kit_weight.reduce(:+)
+  end
+
+  def line_item_kit_get_value line_item
+    if !is_kit?(line_item)
+      return false
+    end
+    @order.line_items.select{|li| li[:parent_id] == line_item[:id]}.collect{|li| li[:price] * li[:quantity] }.reduce(:+) + line_item[:price]
   end
 
   def fedex
@@ -255,8 +393,9 @@ class Spree::ShippingLabel
       }
   end
 
-  def pdf_crop
-    `#{Spree::PrintShippingLabel::Config[:pdfcrop]} #{@path}#{@file} #{@path}#{@tmp_file} && rm #{@path}#{@file} && mv #{@path}#{@tmp_file} #{@path}#{@file}` unless Spree::PrintShippingLabel::Config[:pdfcrop].blank?
+  def pdf_crop file_name, margins = [0, 0, 0, 0]
+    tmp_name = "#{(0...10).map{ ('a'..'z').to_a[rand(26)] }.join}.pdf"
+    `#{Spree::PrintShippingLabel::Config[:pdfcrop]} --margins="#{margins.join(" ")}" #{file_name} #{@path}#{tmp_name} && rm #{file_name} && mv #{@path}#{tmp_name} #{file_name}` unless Spree::PrintShippingLabel::Config[:pdfcrop].blank?
   end
 
   def update_tracking_number t_number
