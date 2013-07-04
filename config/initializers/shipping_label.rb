@@ -1,11 +1,20 @@
-=begin
-Application.configure do
-  initializer "spree.print_shipping_label_url", :after => 'spree.shipping_label.preferences' do |app|
+class Endicia
+  class << self
+    attr_accessor :requester_id
+    attr_accessor :account_id
+    attr_accessor :password
+    attr_accessor :url
+  end
+end
+Store::Application.configure do
+  config.after_initialize do
+    Endicia.requester_id = "j07rdi@gmail.com"
+    Endicia.account_id = "867163"
+    Endicia.password = "af-cag-yoif-net-v"
     if Rails.env == 'production'
-      Spree::ShippingLabelConfiguration[:endicia_url] = "https://labelserver.endicia.com/LabelService/EwsLabelService.asmx/"
+      Endicia.url = "https://labelserver.endicia.com/LabelService/EwsLabelService.asmx/"
     else
-      Spree::ShippingLabelConfiguration[:endicia_url] = "https://www.envmgr.com/LabelService/EwsLabelService.asmx/"
+      Endicia.url = "https://www.envmgr.com/LabelService/EwsLabelService.asmx/"
     end
   end
 end
-=end
