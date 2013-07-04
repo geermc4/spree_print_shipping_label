@@ -22,7 +22,7 @@ class Spree::ShippingLabel
 
     self.to_name = "#{@order.ship_address.firstname} #{@order.ship_address.lastname}"
     self.to_company = @order.ship_address.company || ""
-    self.to_telephone = @order.ship_address.phone == "(not given)" ? @order.bill_address.phone : @order.ship_address.phone
+    self.to_telephone = clean_phone_number(@order.ship_address.phone == "(not given)" ? @order.bill_address.phone : @order.ship_address.phone)
     self.to_address1 = @order.ship_address.address1
     self.to_address2 = @order.ship_address.address2 || ""
     self.to_city = @order.ship_address.city
@@ -35,7 +35,8 @@ class Spree::ShippingLabel
 
     self.origin_name = Spree::PrintShippingLabel::Config[:origin_name]
     self.origin_company = Spree::PrintShippingLabel::Config[:origin_company]
-    self.origin_telephone = Spree::PrintShippingLabel::Config[:origin_telephone]
+    self.origin_telephone = clean_phone_number(Spree::PrintShippingLabel::Config[:origin_telephone])
+
     self.origin_address = Spree::PrintShippingLabel::Config[:origin_address]
     self.origin_country = Spree::ActiveShipping::Config[:origin_country]
     self.origin_state = Spree::ActiveShipping::Config[:origin_state]
@@ -62,6 +63,10 @@ class Spree::ShippingLabel
 
   def international?
    self.to_country != "US"
+  end
+
+  def clean_phone_number number
+    number.gsub(/\+|\.|\-|\(|\)|\s/, '')
   end
 
   def usps
@@ -116,7 +121,7 @@ xml << "<LabelRequest #{(Spree::ActiveShipping::Config[:test_mode]) ? test_attri
     xml << "<ToPostalCode>#{self.to_zip}</ToPostalCode>"
     xml << "<ToDeliveryPoint>00</ToDeliveryPoint>"
     # remove any signs from the number
-    xml << "<ToPhone>#{self.to_telephone.gsub!(/\+|\.|\(|\)/, '')}</ToPhone>"
+    xml << "<ToPhone>#{self.to_telephone}</ToPhone>"
     xml << "<FromName>#{self.origin_name}</FromName>"
     xml << "<FromCompany>#{self.origin_company}</FromCompany>"
     xml << "<ReturnAddress1>#{self.origin_address}</ReturnAddress1>"
@@ -181,11 +186,7 @@ xml << "<LabelRequest #{(Spree::ActiveShipping::Config[:test_mode]) ? test_attri
     c.follow_location = true
     c.ssl_verify_host = false
     res = Nokogiri::XML::Document.parse(c.body_str)
-    #img = res.search('Base64LabelImage')
-    #File.open("#{@path}#{@file}",'wb') { |f| f.write Base64.decode64(img.inner_text) }
-
-    #update_tracking_number res.search("TrackingNumber").inner_text
-    #pdf_crop
+    res_error = res.search('ErrorMessage')
 
     if !res_error.empty?
       Rails.logger.debug "USPS Label Error"
