@@ -99,9 +99,9 @@ xml << "<LabelRequest #{(Spree::ActiveShipping::Config[:test_mode]) ? test_attri
       # Since we only use Parcel we will always choose Form2976A
       xml << "<IntegratedFormType>FORM2976A</IntegratedFormType>"
     end
-    xml << "<RequesterID>#{::Endicia.requester_id}</RequesterID>"
-    xml << "<AccountID>#{Endicia.account_id}</AccountID>"
-    xml << "<PassPhrase>#{Endicia.password}</PassPhrase>"
+    xml << "<RequesterID>#{Spree::PrintShippingLabel::Config[:endicia_requester_id]}</RequesterID>"
+    xml << "<AccountID>#{Spree::PrintShippingLabel::Config[:endicia_account_id]}</AccountID>"
+    xml << "<PassPhrase>#{Spree::PrintShippingLabel::Config[:endicia_password]}</PassPhrase>"
     xml << "<MailClass>#{self.shipping_method}</MailClass>"
     xml << "<DateAdvance>0</DateAdvance>"
     xml << "<WeightOz>#{(@weight * 16).round(1)}</WeightOz>"
@@ -181,7 +181,7 @@ xml << "<LabelRequest #{(Spree::ActiveShipping::Config[:test_mode]) ? test_attri
 
     xml << "</LabelRequest>"
 
-    url = "#{Endicia.url}GetPostageLabelXML"
+    url = "#{Spree::PrintShippingLabel::Config[:endicia_url]}GetPostageLabelXML"
     c = Curl::Easy.http_post(url, Curl::PostField.content('labelRequestXML', xml.join), :verbose => true)
     c.follow_location = true
     c.ssl_verify_host = false
@@ -272,7 +272,11 @@ xml << "<LabelRequest #{(Spree::ActiveShipping::Config[:test_mode]) ? test_attri
     packages = []
     packages << {
       :weight => {:units => "LB", :value => @weight},
-      :dimensions => {:length => 5, :width => 5, :height => 4, :units => "IN" }
+      :dimensions => {:length => 5, :width => 5, :height => 4, :units => "IN" },
+      :customer_references => {
+        :type => "INVOICE_NUMBER",
+        :value => "#{@order.number}"
+      }
     }
 
     shipping_details = {
@@ -293,7 +297,16 @@ xml << "<LabelRequest #{(Spree::ActiveShipping::Config[:test_mode]) ? test_attri
                 :recipient => recipient,
                 :packages => packages,
                 :service_type => self.shipping_method,
-                :shipping_details => shipping_details }
+                :shipping_details => shipping_details,
+                :label_specification => {
+                  :image_type       => "PDF",
+                  :label_stock_type => "PAPER_4X6"
+                },
+                :customer_references => {
+                  :type => "INVOICE_NUMBER",
+                  :value => "#{@order.number}"
+                }
+    }
     unless self.to_country == "US"
       customs_clearance = fedex_international_aditional_info
       details.merge!( :customs_clearance => customs_clearance )
@@ -301,7 +314,7 @@ xml << "<LabelRequest #{(Spree::ActiveShipping::Config[:test_mode]) ? test_attri
 
     label = fedex.label(details)
     update_tracking_number label.response_details[:completed_shipment_detail][:completed_package_details][:tracking_ids][:tracking_number]
-    pdf_crop
+    pdf_crop "#{@path}#{@file}", [1,1,1,1]
     @file
   end
 
