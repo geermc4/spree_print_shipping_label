@@ -273,10 +273,12 @@ xml << "<LabelRequest #{(Spree::ActiveShipping::Config[:test_mode]) ? test_attri
     packages << {
       :weight => {:units => "LB", :value => @weight},
       :dimensions => {:length => 5, :width => 5, :height => 4, :units => "IN" },
-      :customer_references => {
-        :type => "INVOICE_NUMBER",
-        :value => "#{@order.number}"
-      }
+      :customer_references => [
+        {
+          :type => "INVOICE_NUMBER",
+          :value => "#{@order.number}"
+        }
+      ]
     }
 
     shipping_details = {
@@ -301,10 +303,6 @@ xml << "<LabelRequest #{(Spree::ActiveShipping::Config[:test_mode]) ? test_attri
                 :label_specification => {
                   :image_type       => "PDF",
                   :label_stock_type => "PAPER_4X6"
-                },
-                :customer_references => {
-                  :type => "INVOICE_NUMBER",
-                  :value => "#{@order.number}"
                 }
     }
     unless self.to_country == "US"
