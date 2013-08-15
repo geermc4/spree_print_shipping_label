@@ -6,6 +6,7 @@ class Spree::ShippingLabel
 
   def initialize shipment
     @shipment = Spree::Shipment.find_by_number(shipment)
+    @stock_location = @shipment.stock_location
     @order = @shipment.order
     if @order.user.blank?
       self.user_id = rand(10000)
@@ -38,10 +39,10 @@ class Spree::ShippingLabel
     self.origin_telephone = clean_phone_number(Spree::PrintShippingLabel::Config[:origin_telephone])
 
     self.origin_address = Spree::PrintShippingLabel::Config[:origin_address]
-    self.origin_country = Spree::ActiveShipping::Config[:origin_country]
-    self.origin_state = Spree::ActiveShipping::Config[:origin_state]
-    self.origin_city = Spree::ActiveShipping::Config[:origin_city]
-    self.origin_zip = Spree::ActiveShipping::Config[:origin_zip]
+    self.origin_country = @stock_location.country.iso
+    self.origin_state = @stock_location.state.nil? ? @stock_location.state_name : @stock_location.state.name
+    self.origin_city = @stock_location.city
+    self.origin_zip = @stock_location.zipcode
 
     @path = "public/shipments/"
     @file = "#{@order.number}_#{@order.shipments.size || 1}.pdf"
@@ -61,6 +62,8 @@ class Spree::ShippingLabel
     end
   end
 
+  private
+
   def international?
    self.to_country != "US"
   end
@@ -76,7 +79,7 @@ class Spree::ShippingLabel
     xml << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
     test_attributes = "Test='Yes'"
     intl_attibutes = "LabelType='International' LabelSubtype='Integrated'"
-xml << "<LabelRequest #{(Spree::ActiveShipping::Config[:test_mode]) ? test_attributes : ""} #{(!international?) ? "LabelType='Default'" : intl_attibutes} LabelSize='4x6' ImageFormat='PDF'>"
+    xml << "<LabelRequest #{(Spree::ActiveShipping::Config[:test_mode]) ? test_attributes : ""} #{(!international?) ? "LabelType='Default'" : intl_attibutes} LabelSize='4x6' ImageFormat='PDF'>"
     xml << "<LabelSize>4x6</LabelSize>"
     xml << "<ImageFormat>PDF</ImageFormat>"
     xml << "<Test>N</Test>" unless Spree::ActiveShipping::Config[:test_mode]
@@ -108,8 +111,8 @@ xml << "<LabelRequest #{(Spree::ActiveShipping::Config[:test_mode]) ? test_attri
     xml << "<Stealth>FALSE</Stealth>"
     xml << "<Services InsuredMail='OFF' SignatureConfirmation='OFF' />"
     # has to be greater than 0
-    xml << "<Value>#{@order.amount.to_f}</Value>"
-    xml << "<Description>Label for order ##{@order.number}</Description>"
+    xml << "<Value>#{@shipment.item_total.to_f}</Value>"
+    xml << "<Description>Order ##{@order.number} / Shipment #{@shipment.number}</Description>"
     xml << "<PartnerCustomerID>#{self.user_id}</PartnerCustomerID>"
     xml << "<PartnerTransactionID>#{self.shipment_id}</PartnerTransactionID>"
     xml << "<ToName>#{self.to_name}</ToName>"
@@ -144,11 +147,11 @@ xml << "<LabelRequest #{(Spree::ActiveShipping::Config[:test_mode]) ? test_attri
       xml << "<ImportersCustomsReference>#{importers_ref}</ImportersCustomsReference>"
       xml << "<LicenseNumber>#{license_number}</LicenseNumber>"
       xml << "<CertificateNumber>#{certificate_number}</CertificateNumber>"
-      xml << "<InvoiceNumber>#{@order.number}</InvoiceNumber>"
+      xml << "<InvoiceNumber>#{@shipment.number}</InvoiceNumber>"
       xml << "<NonDeliveryOption>RETURN</NonDeliveryOption>"
       xml << "<EelPfc></EelPfc>"
       xml << "<CustomsItems>"
-      @order.line_items.each do |l|
+      @shipment.line_items.each do |l|
         # get weight of kit
         # o.line_items.collect(&:variant).collect(&:weight).select{|w| !w.nil?}.reduce(&:+)
         # check if it has price if not then its not a product
@@ -216,12 +219,12 @@ xml << "<LabelRequest #{(Spree::ActiveShipping::Config[:test_mode]) ? test_attri
     @file
   end
 
-    def is_part? line_item
+  def is_part? line_item
     ( line_item.try(:parent_id).nil? ) ? false : true
   end
 
   def is_kit? line_item
-    ( @order.line_items.select{|li| li[:parent_id] == line_item[:id]}.count > 0 ) ? true : false
+    ( @shipment.line_items.select{|li| li[:parent_id] == line_item[:id]}.count > 0 ) ? true : false
   end
 
   def line_item_kit_get_weight line_item
@@ -229,7 +232,7 @@ xml << "<LabelRequest #{(Spree::ActiveShipping::Config[:test_mode]) ? test_attri
       return false
     end
     kit_weight = []
-    @order.line_items.select{|li| li[:parent_id] == line_item[:id]}.each{ |li|
+    @shipment.line_items.select{|li| li[:parent_id] == line_item[:id]}.each{ |li|
       if !li.variant[:weight].nil?
         kit_weight << li.variant[:weight] * li[:quantity]
       end
@@ -242,7 +245,7 @@ xml << "<LabelRequest #{(Spree::ActiveShipping::Config[:test_mode]) ? test_attri
     if !is_kit?(line_item)
       return false
     end
-    @order.line_items.select{|li| li[:parent_id] == line_item[:id]}.collect{|li| li[:price] * li[:quantity] }.reduce(:+) + line_item[:price]
+    @shipment.line_items.select{|li| li[:parent_id] == line_item[:id]}.collect{|li| li[:price] * li[:quantity] }.reduce(:+) + line_item[:price]
   end
 
   def fedex
@@ -276,7 +279,7 @@ xml << "<LabelRequest #{(Spree::ActiveShipping::Config[:test_mode]) ? test_attri
       :customer_references => [
         {
           :type => "INVOICE_NUMBER",
-          :value => "#{@order.number}"
+          :value => "#{@shipment.number}"
         }
       ]
     }
@@ -307,6 +310,7 @@ xml << "<LabelRequest #{(Spree::ActiveShipping::Config[:test_mode]) ? test_attri
     }
     unless self.to_country == "US"
       customs_clearance = fedex_international_aditional_info
+      ::Rails.logger.info(customs_clearance)
       details.merge!( :customs_clearance => customs_clearance )
     end
 
@@ -355,15 +359,19 @@ xml << "<LabelRequest #{(Spree::ActiveShipping::Config[:test_mode]) ? test_attri
     }
 
     commodities = []
+    parts = []
 
-    @order.line_items.each do |l|
-      #next unless i.in_shipment @shipment.number
-      if l.product.assembly?
-        l.product.parts_with_price.each do |p|
-          commodities << comodity(p[:variant], p[:count], p[:price])
-        end
+    @shipment.manifest.each do |m|
+      unless m.part
+        commodities << comodity(m.variant, m.quantity, m.price)
       else
-        commodities << comodity(l.variant, l.quantity, l.price)
+        parts << m
+      end
+    end
+
+    parts.group_by{ |p| p.line_item.id }.each do |p|
+      p[1].first.product.parts_with_price.each do |x|
+        commodities << comodity(x[:variant], x[:count], x[:price])
       end
     end
 
@@ -400,14 +408,14 @@ xml << "<LabelRequest #{(Spree::ActiveShipping::Config[:test_mode]) ? test_attri
         :weight => { :units => "LB", :value => "#{(( variant.weight.to_f || 0 ) * quantity) || '0'}"},
         :quantity => quantity,
         :quantity_units => quantity,
-        :unit_price => { :currency => "USD", :amount => variant.price.to_f},
-        :customs_value => { :currency => "USD", :amount => (variant.price * quantity).to_f}
+        :unit_price => { :currency => "USD", :amount => price.to_f},
+        :customs_value => { :currency => "USD", :amount => (price * quantity).to_f}
       }
   end
 
   def pdf_crop file_name, margins = [0, 0, 0, 0]
-    tmp_name = "#{(0...10).map{ ('a'..'z').to_a[rand(26)] }.join}.pdf"
-    `#{Spree::PrintShippingLabel::Config[:pdfcrop]} --margins="#{margins.join(" ")}" #{file_name} #{@path}#{tmp_name} && rm #{file_name} && mv #{@path}#{tmp_name} #{file_name}` unless Spree::PrintShippingLabel::Config[:pdfcrop].blank?
+   # tmp_name = "#{(0...10).map{ ('a'..'z').to_a[rand(26)] }.join}.pdf"
+   # `#{Spree::PrintShippingLabel::Config[:pdfcrop]} --margins="#{margins.join(" ")}" #{file_name} #{@path}#{tmp_name} && rm #{file_name} && mv #{@path}#{tmp_name} #{file_name}` unless Spree::PrintShippingLabel::Config[:pdfcrop].blank?
   end
 
   def update_tracking_number t_number
