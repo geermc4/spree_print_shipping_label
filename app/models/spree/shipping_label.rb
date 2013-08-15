@@ -310,7 +310,6 @@ class Spree::ShippingLabel
     }
     unless self.to_country == "US"
       customs_clearance = fedex_international_aditional_info
-      ::Rails.logger.info(customs_clearance)
       details.merge!( :customs_clearance => customs_clearance )
     end
 
@@ -363,14 +362,14 @@ class Spree::ShippingLabel
 
     @shipment.manifest.each do |m|
       unless m.part
-        commodities << comodity(m.variant, m.quantity, m.price)
+        commodities << comodity(m.variant, m.quantity, m.line_item.price)
       else
         parts << m
       end
     end
 
     parts.group_by{ |p| p.line_item.id }.each do |p|
-      p[1].first.product.parts_with_price.each do |x|
+      p[1].first.product.parts_with_price_for(p[1].first.line_item.price).each do |x|
         commodities << comodity(x[:variant], x[:count], x[:price])
       end
     end
