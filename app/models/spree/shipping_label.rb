@@ -111,7 +111,7 @@ class Spree::ShippingLabel
     xml << "<Stealth>FALSE</Stealth>"
     xml << "<Services InsuredMail='OFF' SignatureConfirmation='OFF' />"
     # has to be greater than 0
-    xml << "<Value>#{@shipment.item_total.to_f}</Value>"
+    xml << "<Value>#{@shipment.item_cost.to_f}</Value>"
     xml << "<Description>Order ##{@order.number} / Shipment #{@shipment.number}</Description>"
     xml << "<PartnerCustomerID>#{self.user_id}</PartnerCustomerID>"
     xml << "<PartnerTransactionID>#{self.shipment_id}</PartnerTransactionID>"
