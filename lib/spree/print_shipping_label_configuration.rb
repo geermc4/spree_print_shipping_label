@@ -1,5 +1,5 @@
 class Spree::PrintShippingLabelConfiguration < Spree::Preferences::Configuration
-  preference :pdfcrop, :string, :default => `which pdfcrop`
+  preference :pdfcrop, :string, :default => `which pdfcrop`.chomp
 
   preference :origin_telephone, :string, :default => "555-555-5555"
   preference :origin_name, :string, :default => "Some Dude"
