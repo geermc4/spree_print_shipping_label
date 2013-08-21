@@ -413,8 +413,8 @@ class Spree::ShippingLabel
   end
 
   def pdf_crop file_name, margins = [0, 0, 0, 0]
-   # tmp_name = "#{(0...10).map{ ('a'..'z').to_a[rand(26)] }.join}.pdf"
-   # `#{Spree::PrintShippingLabel::Config[:pdfcrop]} --margins="#{margins.join(" ")}" #{file_name} #{@path}#{tmp_name} && rm #{file_name} && mv #{@path}#{tmp_name} #{file_name}` unless Spree::PrintShippingLabel::Config[:pdfcrop].blank?
+    tmp_name = "#{(0...10).map{ ('a'..'z').to_a[rand(26)] }.join}.pdf"
+    `#{Spree::PrintShippingLabel::Config[:pdfcrop]} --margins="#{margins.join(" ")}" #{file_name} #{@path}#{tmp_name} && rm #{file_name} && mv #{@path}#{tmp_name} #{file_name}` unless Spree::PrintShippingLabel::Config[:pdfcrop].blank?
   end
 
   def update_tracking_number t_number
