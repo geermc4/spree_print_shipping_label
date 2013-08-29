@@ -156,7 +156,7 @@ class Spree::ShippingLabel
         # o.line_items.collect(&:variant).collect(&:weight).select{|w| !w.nil?}.reduce(&:+)
         # check if it has price if not then its not a product
         # its a config part and its already on another prod
-        if !is_part? l
+        if !is_part_of_kit? l
           if is_kit? l
             weight = line_item_kit_get_weight l
             value = line_item_kit_get_value l
@@ -218,7 +218,7 @@ class Spree::ShippingLabel
     @file
   end
 
-  def is_part? line_item
+  def is_part_of_kit? line_item
     ( line_item.try(:parent_id).nil? ) ? false : true
   end
 
@@ -288,13 +288,7 @@ class Spree::ShippingLabel
       :drop_off_type => "REGULAR_PICKUP"
     }
 
-    fedex = Fedex::Shipment.new(
-      :key => Spree::ActiveShipping::Config[:fedex_key],
-      :password => Spree::ActiveShipping::Config[:fedex_password],
-      :account_number => Spree::ActiveShipping::Config[:fedex_account],
-      :meter => Spree::ActiveShipping::Config[:fedex_login],
-      :mode => ( Spree::ActiveShipping::Config[:test_mode] ? 'development' : 'production' )
-    )
+    fedex = get_fedex_object
 
     details = { :filename => "#{@path}#{@file}",
                 :shipper => shipper,
@@ -316,6 +310,16 @@ class Spree::ShippingLabel
     update_tracking_number label.response_details[:completed_shipment_detail][:completed_package_details][:tracking_ids][:tracking_number]
     pdf_crop "#{@path}#{@file}", [1,1,1,1]
     @file
+  end
+  
+  def get_fedex_object
+    Fedex::Shipment.new(
+      :key => Spree::ActiveShipping::Config[:fedex_key],
+      :password => Spree::ActiveShipping::Config[:fedex_password],
+      :account_number => Spree::ActiveShipping::Config[:fedex_account],
+      :meter => Spree::ActiveShipping::Config[:fedex_login],
+      :mode => ( Spree::ActiveShipping::Config[:test_mode] ? 'development' : 'production' )
+    )
   end
 
   def fedex_international_aditional_info
@@ -359,18 +363,8 @@ class Spree::ShippingLabel
     commodities = []
     parts = []
 
-    @shipment.manifest.each do |m|
-      unless m.part
-        commodities << comodity(m.variant, m.quantity, m.line_item.price)
-      else
-        parts << m
-      end
-    end
-
-    parts.group_by{ |p| p.line_item.id }.each do |p|
-      p[1].first.product.parts_with_price_for(p[1].first.line_item.price).each do |x|
-        commodities << comodity(x[:variant], x[:count], x[:price])
-      end
+    @shipment.line_items.each do |line_item|
+      commodities << comodity(line_item.variant, line_item.quantity, line_item.price)
     end
 
     cv = 0
