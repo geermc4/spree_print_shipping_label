@@ -29,7 +29,7 @@ class Spree::ShippingLabel
     self.to_city = @order.ship_address.city
     self.to_state = @order.ship_address.state_name || (@order.ship_address.state.nil? ? "" : @order.ship_address.state.abbr)
 
-    self.to_zip = @order.ship_address.zipcode
+    self.to_zip = @order.ship_address.zipcode[0..4] #USPS failts with xxxxx-xxxx
     self.to_country = Spree::Country.find(@order.ship_address.country_id).iso
     country = Spree::Country.find(@order.ship_address.country_id)
     self.to_residential = @order.ship_address.company.blank? ? "true" : "false"
