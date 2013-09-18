@@ -139,10 +139,10 @@ class Spree::ShippingLabel
       certificate_number  = ""
       hs_tariff           = "854290"
       xml << "<CustomsInfo>"
-      xml << "<ContentsType>Other</ContentsType>"
-      xml << "<ContentsExplanation>Merchandise</ContentsExplanation>"
+      xml << "<ContentsType>Merchandise</ContentsType>"
+      #xml << "<ContentsExplanation>Merchandise</ContentsExplanation>"
       xml << "<RestrictionType>NONE</RestrictionType>"
-      xml << "<RestrictionCommments />"
+      #xml << "<RestrictionCommments />"
       xml << "<SendersCustomsReference>#{senders_ref}</SendersCustomsReference>"
       xml << "<ImportersCustomsReference>#{importers_ref}</ImportersCustomsReference>"
       xml << "<LicenseNumber>#{license_number}</LicenseNumber>"
@@ -152,30 +152,21 @@ class Spree::ShippingLabel
       xml << "<EelPfc></EelPfc>"
       xml << "<CustomsItems>"
       @shipment.line_items.each do |l|
-        # get weight of kit
-        # o.line_items.collect(&:variant).collect(&:weight).select{|w| !w.nil?}.reduce(&:+)
         # check if it has price if not then its not a product
         # its a config part and its already on another prod
-        if !is_part_of_kit? l
-          if is_kit? l
-            weight = line_item_kit_get_weight l
-            value = line_item_kit_get_value l
-          else
-            weight = l.variant.weight.to_f
-            value = l.amount.to_f.round(2)
-          end
-          if l.amount.to_f > 0
-            xml << "<CustomsItem>"
-            # Description has a limit of 50 characters
-            xml << "<Description>#{l.product.name.slice(0..49)}</Description>"
-            xml << "<Quantity>#{l.quantity}</Quantity>"
-            # Weight can't be 0, and its measured in oz
-            xml << "<Weight>#{(((weight > 0) ? weight : 0.1) * 16).round(2)}</Weight>"
-            xml << "<Value>#{value.round(2)}</Value>"
-            xml << "<HSTariffNumber>#{hs_tariff}</HSTariffNumber>"
-            xml << "<CountryOfOrigin>US</CountryOfOrigin>"
-            xml << "</CustomsItem>"
-          end
+        weight = l.variant.weight.to_f
+        value = l.amount.to_f.round(2)
+        if l.amount.to_f > 0
+          xml << "<CustomsItem>"
+          # Description has a limit of 50 characters
+          xml << "<Description>#{l.product.name.slice(0..49)}</Description>"
+          xml << "<Quantity>#{l.quantity}</Quantity>"
+          # Weight can't be 0, and its measured in oz
+          xml << "<Weight>#{(((weight > 0) ? weight : 0.1) * 16).round(2)}</Weight>"
+          xml << "<Value>#{value.round(2)}</Value>"
+          xml << "<HSTariffNumber>#{hs_tariff}</HSTariffNumber>"
+          xml << "<CountryOfOrigin>US</CountryOfOrigin>"
+          xml << "</CustomsItem>"
         end
       end
       xml << "</CustomsItems>"
