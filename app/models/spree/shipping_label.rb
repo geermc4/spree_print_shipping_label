@@ -191,9 +191,8 @@ class Spree::ShippingLabel
     res = Nokogiri::XML::Document.parse(c.body_str)
     res_error = res.search('ErrorMessage')
 
-    if !res_error.empty?
-      Rails.logger.debug "USPS Label Error"
-      Rails.logger.debug res_error
+    if res_error.present?
+      raise "USPS Label Error - #{res_error.children.first.content}"
     else
       if !international?
         img = res.search('Base64LabelImage')
