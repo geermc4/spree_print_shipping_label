@@ -50,9 +50,9 @@ class Spree::ShippingLabel
 
     @weight = 0
     @shipment.inventory_units.each do |i|
-      @weight = @weight + i.variant.weight unless i.variant.weight.blank?
+      @weight += i.variant.weight unless i.variant.weight.blank?
     end
-    @weight = 1 if @weight < 1
+    @weight = 0.00625 if @weight <= 0 # 0.00625 * 16 = 0.1oz
 
     case @shipment.shipping_method.name
       when /USPS.*/i
