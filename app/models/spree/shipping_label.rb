@@ -29,7 +29,7 @@ class Spree::ShippingLabel
     self.to_city = @order.ship_address.city
     self.to_state = @order.ship_address.state_name || (@order.ship_address.state.nil? ? "" : @order.ship_address.state.abbr)
 
-    self.to_zip = @order.ship_address.zipcode[0..4] #USPS failts with xxxxx-xxxx
+    self.to_zip = @order.ship_address.zipcode.gsub(/\-|\s/, '')
     self.to_country = Spree::Country.find(@order.ship_address.country_id).iso
     country = Spree::Country.find(@order.ship_address.country_id)
     self.to_residential = @order.ship_address.company.blank? ? "true" : "false"
@@ -48,11 +48,13 @@ class Spree::ShippingLabel
     @file = "#{@order.number}_#{@order.shipments.size || 1}.pdf"
     @tmp_file = "tmp_#{@file}"
 
-    @weight = 0
-    @shipment.inventory_units.each do |i|
-      @weight += i.variant.weight unless i.variant.weight.blank?
-    end
-    @weight = 0.00625 if @weight <= 0 # 0.00625 * 16 = 0.1oz
+    @weight = @shipment.line_items.map do |i|
+      if i.variant.weight.nil?
+        0.00625 # 0.00625 * 16 = 0.1oz
+      else
+        i.variant.weight
+      end
+    end.reject{|i| i.nil?}.reduce(:+)
 
     case @shipment.shipping_method.name
       when /USPS.*/i
@@ -154,15 +156,18 @@ class Spree::ShippingLabel
       @shipment.line_items.each do |l|
         # check if it has price if not then its not a product
         # its a config part and its already on another prod
-        weight = l.variant.weight.to_f
-        value = l.amount.to_f.round(2)
-        if l.amount.to_f > 0
+        weight = l.variant.weight
+        if weight.nil?
+          weight = 0.00625 # 0.00625 * 16 = 0.1oz
+        end
+        value = l.amount
+        if value > 0
           xml << "<CustomsItem>"
           # Description has a limit of 50 characters
           xml << "<Description>#{l.product.name.slice(0..49)}</Description>"
           xml << "<Quantity>#{l.quantity}</Quantity>"
           # Weight can't be 0, and its measured in oz
-          xml << "<Weight>#{(((weight > 0) ? weight : 0.1) * 16).round(2)}</Weight>"
+          xml << "<Weight>#{(weight * 16).round(2)}</Weight>"
           xml << "<Value>#{value.round(2)}</Value>"
           xml << "<HSTariffNumber>#{hs_tariff}</HSTariffNumber>"
           xml << "<CountryOfOrigin>US</CountryOfOrigin>"
