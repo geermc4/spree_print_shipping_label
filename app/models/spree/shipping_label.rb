@@ -48,13 +48,7 @@ class Spree::ShippingLabel
     @file = "#{@order.number}_#{@order.shipments.size || 1}.pdf"
     @tmp_file = "tmp_#{@file}"
 
-    @weight = @shipment.line_items.map do |i|
-      if i.variant.weight.nil?
-        0.00625 # 0.00625 * 16 = 0.1oz
-      else
-        i.variant.weight
-      end
-    end.reject{|i| i.nil?}.reduce(:+)
+    @weight = @shipment.line_items.map{|i| i.variant.weight || 0.00625}.sum
 
     case @shipment.shipping_method.name
       when /USPS.*/i
@@ -156,10 +150,7 @@ class Spree::ShippingLabel
       @shipment.line_items.each do |l|
         # check if it has price if not then its not a product
         # its a config part and its already on another prod
-        weight = l.variant.weight
-        if weight.nil?
-          weight = 0.00625 # 0.00625 * 16 = 0.1oz
-        end
+        weight = l.variant.weight.try(:to_f) || 0.00625
         value = l.amount
         if value > 0
           xml << "<CustomsItem>"
