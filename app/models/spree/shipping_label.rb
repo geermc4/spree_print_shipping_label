@@ -103,7 +103,9 @@ class Spree::ShippingLabel
     xml << "<PassPhrase>#{Spree::PrintShippingLabel::Config[:endicia_password]}</PassPhrase>"
     xml << "<MailClass>#{self.shipping_method}</MailClass>"
     xml << "<DateAdvance>0</DateAdvance>"
-    xml << "<WeightOz>#{(@weight * 16).round(1)}</WeightOz>"
+    @weight *= 16 # lb to oz
+    @weight = (@weight.round(1) == 0) ? 0.1 : @weight.round(1) # make sure we dont post 0.0 
+    xml << "<WeightOz>#{@weight}</WeightOz>"
     xml << "<Stealth>FALSE</Stealth>"
     xml << "<Services InsuredMail='OFF' SignatureConfirmation='OFF' />"
     # has to be greater than 0
