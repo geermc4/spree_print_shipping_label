@@ -48,7 +48,7 @@ class Spree::ShippingLabel
     @file = "#{@order.number}_#{@order.shipments.size || 1}.pdf"
     @tmp_file = "tmp_#{@file}"
 
-    @weight = @shipment.line_items.map{|i| i.variant.weight || 0.00625}.sum
+    @weight = @shipment.line_items.map{|i| i.variant.weight || 0.1}.sum # Defaults to 0.1oz
 
     case @shipment.shipping_method.name
       when /USPS.*/i
@@ -103,7 +103,7 @@ class Spree::ShippingLabel
     xml << "<PassPhrase>#{Spree::PrintShippingLabel::Config[:endicia_password]}</PassPhrase>"
     xml << "<MailClass>#{self.shipping_method}</MailClass>"
     xml << "<DateAdvance>0</DateAdvance>"
-    @weight *= 16 # lb to oz
+    @weight *= Spree::ActiveShipping::Config[:unit_multiplier] # make sure you convert items
     @weight = (@weight.round(1) == 0) ? 0.1 : @weight.round(1) # make sure we dont post 0.0 
     xml << "<WeightOz>#{@weight}</WeightOz>"
     xml << "<Stealth>FALSE</Stealth>"
@@ -152,7 +152,7 @@ class Spree::ShippingLabel
       @shipment.line_items.each do |l|
         # check if it has price if not then its not a product
         # its a config part and its already on another prod
-        weight = l.variant.weight.try(:to_f) || 0.00625
+        weight = l.variant.weight.try(:to_f) || 0.1 # 0.1oz
         value = l.amount
         if value > 0
           xml << "<CustomsItem>"
@@ -160,7 +160,7 @@ class Spree::ShippingLabel
           xml << "<Description>#{l.product.name.slice(0..49)}</Description>"
           xml << "<Quantity>#{l.quantity}</Quantity>"
           # Weight can't be 0, and its measured in oz
-          xml << "<Weight>#{(weight * 16).round(2)}</Weight>"
+          xml << "<Weight>#{(weight * Spree::ActiveShipping::Config[:unit_multiplier]).round(2)}</Weight>"
           xml << "<Value>#{value.round(2)}</Value>"
           xml << "<HSTariffNumber>#{hs_tariff}</HSTariffNumber>"
           xml << "<CountryOfOrigin>US</CountryOfOrigin>"
