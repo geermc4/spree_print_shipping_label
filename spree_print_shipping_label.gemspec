@@ -19,7 +19,7 @@ Gem::Specification.new do |s|
   s.test_files = Dir["test/**/*"]
 
   s.add_dependency "curb", "~> 0.8.3"
-  s.add_dependency "nokogiri", "~> 1.5.9"
+  s.add_dependency "nokogiri", "~> 1.6.0"
 #  s.add_dependency "spree_active_shipping", "~> 1.2.0"
 #  s.add_dependency "fedex", "~> 3.0.0"
 end
