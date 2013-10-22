@@ -153,15 +153,17 @@ class Spree::ShippingLabel
         # check if it has price if not then its not a product
         # its a config part and its already on another prod
         weight = l.variant.weight.try(:to_f) || 0.1 # 0.1oz
-        value = l.amount
+        weight = (weight * Spree::ActiveShipping::Config[:unit_multiplier]).round(2)
+        weight = (weight.zero?) ? 0.01 : weight # weight multiplied and rounded
+        value = l.amount.round(2)
         if value > 0
           xml << "<CustomsItem>"
           # Description has a limit of 50 characters
           xml << "<Description>#{l.product.name.slice(0..49)}</Description>"
           xml << "<Quantity>#{l.quantity}</Quantity>"
           # Weight can't be 0, and its measured in oz
-          xml << "<Weight>#{(weight * Spree::ActiveShipping::Config[:unit_multiplier]).round(2)}</Weight>"
-          xml << "<Value>#{value.round(2)}</Value>"
+          xml << "<Weight>#{weight}</Weight>"
+          xml << "<Value>#{value}</Value>"
           xml << "<HSTariffNumber>#{hs_tariff}</HSTariffNumber>"
           xml << "<CountryOfOrigin>US</CountryOfOrigin>"
           xml << "</CustomsItem>"
