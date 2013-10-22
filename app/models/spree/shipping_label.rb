@@ -30,8 +30,7 @@ class Spree::ShippingLabel
     self.to_state = @order.ship_address.state_name || (@order.ship_address.state.nil? ? "" : @order.ship_address.state.abbr)
 
     self.to_zip = @order.ship_address.zipcode.gsub(/\-|\s/, '')
-    self.to_country = Spree::Country.find(@order.ship_address.country_id).iso
-    country = Spree::Country.find(@order.ship_address.country_id)
+    self.to_country = @order.ship_address.country.iso
     self.to_residential = @order.ship_address.company.blank? ? "true" : "false"
 
     self.origin_name = Spree::PrintShippingLabel::Config[:origin_name]
@@ -59,7 +58,6 @@ class Spree::ShippingLabel
   end
 
   private
-
   def international?
    self.to_country != "US"
   end
@@ -117,7 +115,7 @@ class Spree::ShippingLabel
     xml << "<ToAddress1>#{self.to_address1}</ToAddress1>"
     xml << "<ToCity>#{self.to_city}</ToCity>"
     xml << "<ToState>#{self.to_state}</ToState>"
-    xml << "<ToCountry>#{Spree::Country.find(@order.ship_address.country_id).iso_name}</ToCountry>"
+    xml << "<ToCountry>#{@order.ship_address.country.iso_name}</ToCountry>"
     xml << "<ToCountryCode>#{self.to_country}</ToCountryCode>"
     xml << "<ToPostalCode>#{self.to_zip}</ToPostalCode>"
     xml << "<ToDeliveryPoint>00</ToDeliveryPoint>"
