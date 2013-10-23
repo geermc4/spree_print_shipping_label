@@ -181,7 +181,7 @@ class Spree::ShippingLabel
     res_error = res.search('ErrorMessage')
 
     if res_error.present?
-      raise "USPS Label Error - #{res_error.children.first.content}"
+      raise Spree::LabelError.new("Label Error: USPS - #{res_error.children.first.content}")
     else
       if !international?
         img = res.search('Base64LabelImage')
@@ -294,10 +294,14 @@ class Spree::ShippingLabel
       details.merge!( :customs_clearance => customs_clearance )
     end
 
-    label = fedex.label(details)
-    update_tracking_number label.response_details[:completed_shipment_detail][:completed_package_details][:tracking_ids][:tracking_number]
-    pdf_crop "#{@path}#{@file}", [1,1,1,1]
-    @file
+    begin
+      label = fedex.label(details)
+      update_tracking_number label.response_details[:completed_shipment_detail][:completed_package_details][:tracking_ids][:tracking_number]
+      pdf_crop "#{@path}#{@file}", [1,1,1,1]
+      @file
+    rescue Fedex::RateError => e
+      raise Spree::LabelError.new("Label Error: FedEx - #{e.message}")
+    end
   end
   
   def get_fedex_object
@@ -404,4 +408,3 @@ class Spree::ShippingLabel
     @shipment.save
   end
 end
-
