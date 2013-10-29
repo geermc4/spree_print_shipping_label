@@ -8,6 +8,7 @@ class Spree::ShippingLabel
     @shipment = Spree::Shipment.find_by_number(shipment)
     @stock_location = @shipment.stock_location
     @order = @shipment.order
+    @unit = Spree::ActiveShipping::Config[:units]
     if @order.user.blank?
       self.user_id = rand(10000)
       self.tax_note = ""
@@ -216,24 +217,23 @@ class Spree::ShippingLabel
   end
 
   def line_item_kit_get_weight line_item
-    if !is_kit?(line_item)
-      return false
-    end
-    kit_weight = []
-    @shipment.line_items.select{|li| li[:parent_id] == line_item[:id]}.each{ |li|
-      if !li.variant[:weight].nil?
-        kit_weight << li.variant[:weight] * li[:quantity]
-      end
-      kit_weight << 0
-    }
-    kit_weight.reduce(:+)
+    return false if !is_kit?(line_item)
+    @shipment.line_items.select{|l| l[:parent_id] == line_item[:id]}.collect{|l| l.variant.weight.to_f * l[:quantity]}.sum
   end
 
   def line_item_kit_get_value line_item
-    if !is_kit?(line_item)
-      return false
-    end
-    @shipment.line_items.select{|li| li[:parent_id] == line_item[:id]}.collect{|li| li[:price] * li[:quantity] }.reduce(:+) + line_item[:price]
+    return false if !is_kit?(line_item)
+    @shipment.line_items.select{|li| li[:parent_id] == line_item[:id]}.collect{|li| li[:price] * li[:quantity] }.sum + line_item[:price]
+  end
+
+  def fedex_weight_units
+    return "LB" if @unit == 'imperial'
+    return "KG" if @unit == 'metric'
+  end
+
+  def fedex_dimension_units
+    return "IN" if @unit == 'imperial'
+    return "CM" if @unit == 'metric'
   end
 
   def fedex
@@ -262,8 +262,9 @@ class Spree::ShippingLabel
 
     packages = []
     packages << {
-      :weight => {:units => "LB", :value => @weight},
-      :dimensions => {:length => 5, :width => 5, :height => 4, :units => "IN" },
+      :weight => {:units => fedex_units, :value => @weight},
+      # per api dimensions are optional
+      :dimensions => {:length => 5, :width => 5, :height => 4, :units => fedex_dimension_units },
       :customer_references => [
         {
           :type => "INVOICE_NUMBER",
