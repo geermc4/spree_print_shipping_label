@@ -48,7 +48,7 @@ class Spree::ShippingLabel
     @file = "#{@order.number}_#{@order.shipments.size || 1}.pdf"
     @tmp_file = "tmp_#{@file}"
 
-    @weight = @shipment.line_items.map{|i| i.variant.weight || 0.1}.sum # Defaults to 0.1oz
+    @weight = @shipment.line_items.map{|i| i.variant.weight || 0.01}.sum # Defaults to 0.01lb -> 0.16oz
 
     case @shipment.shipping_method.name
       when /USPS.*/i
@@ -68,8 +68,6 @@ class Spree::ShippingLabel
   end
 
   def usps
-    senders_customs_ref   = ""
-    importers_customs_ref = ""
     xml = []
     xml << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
     test_attributes = "Test='Yes'"
@@ -102,7 +100,8 @@ class Spree::ShippingLabel
     xml << "<PassPhrase>#{Spree::PrintShippingLabel::Config[:endicia_password]}</PassPhrase>"
     xml << "<MailClass>#{self.shipping_method}</MailClass>"
     xml << "<DateAdvance>0</DateAdvance>"
-    @weight *= Spree::ActiveShipping::Config[:unit_multiplier] # make sure you convert items
+    # Endicia (USPS) requires Weight to be sent in Oz
+    @weight *= Spree::ActiveShipping::Config[:unit_multiplier] # make sure weight is measured in oz
     @weight = (@weight.round(1) == 0) ? 0.1 : @weight.round(1) # make sure we dont post 0.0 
     xml << "<WeightOz>#{@weight}</WeightOz>"
     xml << "<Stealth>FALSE</Stealth>"
@@ -150,12 +149,15 @@ class Spree::ShippingLabel
       xml << "<EelPfc></EelPfc>"
       xml << "<CustomsItems>"
       @shipment.line_items.each do |l|
-        # check if it has price if not then its not a product
-        # its a config part and its already on another prod
-        weight = l.variant.weight.try(:to_f) || 0.1 # 0.1oz
+        # get the product weight if defined else default to the lowest possible value
+        weight = l.variant.weight.try(:to_f) || 0.01 # 0.1lb -> 0.16oz
+        # convert to units and round the weight for api
         weight = (weight * Spree::ActiveShipping::Config[:unit_multiplier]).round(2)
-        weight = (weight.zero?) ? 0.01 : weight # weight multiplied and rounded
+        weight = (weight.zero?) ? 0.01 : weight # make sure we weight is never 0
+        # round the price value to fit API requirements
         value = l.amount.round(2)
+        # check if it has price if not then its not a product that can be shipped
+        # its a config part and its already defined inside another product
         if value > 0
           xml << "<CustomsItem>"
           # Description has a limit of 50 characters
@@ -262,7 +264,8 @@ class Spree::ShippingLabel
 
     packages = []
     packages << {
-      :weight => {:units => fedex_units, :value => @weight},
+      # according to mireya fedex only accepts weights bigger than 1lb
+      :weight => {:units => fedex_weight_units, :value => @weight.ceil},
       # per api dimensions are optional
       :dimensions => {:length => 5, :width => 5, :height => 4, :units => fedex_dimension_units },
       :customer_references => [
@@ -317,7 +320,7 @@ class Spree::ShippingLabel
   end
 
   def fedex_international_aditional_info
-    broker={
+    broker = {
       :contact => {
         :contact_id => self.user_id,
         :person_name => self.to_name,
@@ -342,10 +345,8 @@ class Spree::ShippingLabel
       :terms_of_sale => "EXW",
     }
 
-    importer_of_record = broker
-#**************
     recipient_customs_id = { :type => 'INDIVIDUAL', :value => self.tax_note || "" }
-#**************
+
     duties_payment = {
       :payment_type => "SENDER",
       :payor => {
@@ -354,25 +355,14 @@ class Spree::ShippingLabel
       }
     }
 
-    commodities = []
-    parts = []
+    commodities = @shipment.line_items.collect{ |line_item| comodity(line_item.variant, line_item.quantity, line_item.price) }
+    customs_value_amount = commodities.collect{|c| c[:customs_value][:amount] }.sum
+    customs_value = { :currency => "USD", :amount => customs_value_amount }
 
-    @shipment.line_items.each do |line_item|
-      commodities << comodity(line_item.variant, line_item.quantity, line_item.price)
-    end
-
-    cv = 0
-    commodities.each do |c|
-      cv += c[:customs_value][:amount]
-    end
-
-    customs_value = {
-      :currency => "USD", :amount => cv }
-
-    customs_clearance = {
+    {
       :broker => broker,
       :clearance_brokerage => "BROKER_INCLUSIVE",
-      :importer_of_record => importer_of_record,
+      :importer_of_record => broker,
       :recipient_customs_id => recipient_customs_id,
       :duties_payment => duties_payment,
       :customs_value => customs_value,
