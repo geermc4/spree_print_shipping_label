@@ -113,6 +113,7 @@ class Spree::ShippingLabel
     xml << "<PartnerTransactionID>#{self.shipment_id}</PartnerTransactionID>"
     xml << "<ToName>#{self.to_name}</ToName>"
     xml << "<ToAddress1>#{self.to_address1}</ToAddress1>"
+    xml << "<ToAddress2>#{self.to_address2}</ToAddress2>"
     xml << "<ToCity>#{self.to_city}</ToCity>"
     xml << "<ToState>#{self.to_state}</ToState>"
     xml << "<ToCountry>#{@order.ship_address.country.iso_name}</ToCountry>"
