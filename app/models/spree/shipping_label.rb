@@ -348,11 +348,7 @@ class Spree::ShippingLabel
     recipient_customs_id = { :type => 'INDIVIDUAL', :value => self.tax_note || "" }
 
     duties_payment = {
-      :payment_type => "SENDER",
-      :payor => {
-        :account_number => Spree::ActiveShipping::Config[:fedex_account],
-        :country_code => "US"
-      }
+      :payment_type => "RECIPIENT"
     }
 
     commodities = @shipment.line_items.collect{ |line_item| comodity(line_item.variant, line_item.quantity, line_item.price) }
