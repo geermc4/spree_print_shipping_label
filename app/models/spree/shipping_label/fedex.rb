@@ -11,7 +11,6 @@ module Spree
     private
     def build_body_node
       details = {
-        #:filename => "#{@path}#{get_file_name_for_label}",
         :shipper => build_shipper_node,
         :recipient => build_recipient_node,
         :packages => build_shipment_details_node,
@@ -68,10 +67,6 @@ module Spree
       }
     end
 
-    def spit_file response, file_name
-      response.save("#{@path}#{file_name}", false)
-      "#{@path}#{file_name}"
-    end
 
     def build_shipper_node
       {
@@ -152,16 +147,6 @@ module Spree
       }
     end
 
-    def fedex_weight_units
-      return "LB" if @unit == 'imperial'
-      return "KG" if @unit == 'metric'
-    end
-
-    def fedex_dimension_units
-      return "IN" if @unit == 'imperial'
-      return "CM" if @unit == 'metric'
-    end
-
     def comodity line_item
       price = get_valid_item_price_from_line_item line_item
       desc = ActionView::Base.full_sanitizer.sanitize("#{ line_item.variant.product.name }")
@@ -188,6 +173,21 @@ module Spree
         :meter => Spree::ActiveShipping::Config[:fedex_login],
         :mode => ( Spree::ActiveShipping::Config[:test_mode] ? 'development' : 'production' )
       )
+    end
+
+    def fedex_weight_units
+      return "LB" if @unit == 'imperial'
+      return "KG" if @unit == 'metric'
+    end
+
+    def fedex_dimension_units
+      return "IN" if @unit == 'imperial'
+      return "CM" if @unit == 'metric'
+    end
+
+    def spit_file response, file_name
+      response.save("#{@path}#{file_name}", false)
+      "#{@path}#{file_name}"
     end
   end
 end
