@@ -7,7 +7,7 @@ class Spree::ShippingLabel
     self.shipment = shipment
     self.order = self.shipment.order
     self.stock_location = self.shipment.stock_location
-    self.user = self.order.user unless self.user.nil?
+    self.user = self.order.user unless self.order.user.nil?
     self.shipping_address = self.order.shipping_address
     @path = Spree::PrintShippingLabel::Config[:default_path]
     @unit = Spree::ActiveShipping::Config[:units]
