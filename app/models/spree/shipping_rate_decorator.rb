@@ -5,6 +5,11 @@ Spree::ShippingRate.class_eval do
     elsif shipping_method.name.include?('FedEx')
       Spree::ShippingLabel::Fedex.new self.shipment
     end 
+
+    label_engine.errors[:base].each do |error|
+      raise Spree::LabelError.new error
+    end unless label_engine.valid?
+
     label_engine.request_label and_update_tracking
   end
 end
