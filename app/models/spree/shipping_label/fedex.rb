@@ -111,7 +111,7 @@ module Spree
     end
 
     def build_recipient_customs_id_node
-      { :type => 'INDIVIDUAL', :value => self.user.tax_note || "" }
+      { :type => 'INDIVIDUAL', :value => (self.user ? self.user.tax_note : "") }
     end
 
     def build_customs_value_node
