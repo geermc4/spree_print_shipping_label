@@ -38,7 +38,7 @@ class Spree::ShippingLabel
   end
 
   def shipment_weight
-    self.shipment.line_items.collect(&:variant).collect(&:weight).sum
+    self.shipment.line_items.collect(&:variant).collect(&:weight).compact.sum
   end
   def shipment_weight_in_oz
     shipment_weight * Spree::ActiveShipping::Config[:unit_multiplier]
