@@ -82,7 +82,7 @@ module Spree
           @shipment.line_items.each do |l|
             # get the product weight if defined else default to the lowest possible value
             weight = l.variant.weight.try(:to_f)
-            # convert to units and round the weight for api
+            # convert to units and round the weight because api only takes 2 digits
             weight = (weight * Spree::ActiveShipping::Config[:unit_multiplier]).round(2)
             # make sure we weight is never 0
             # this is sometimes the case when the product weight is
@@ -178,6 +178,17 @@ module Spree
         # only rename the file to the original label file
         `mv #{part_names} #{self.file_path}`
       end
+    end
+
+    # make sure the round weight requirements for this serivce
+    # don't affect the weight calculations
+    def shipment_weight
+      self.shipment.line_items.collect(&:variant).collect do |variant|
+        # round here since we have to report the individual weight
+        # of each variant with only 2 decimals
+        rounded_weight = variant.weight.round(2)
+        (rounded_weight.zero?) ? 0.01 : rounded_weight
+      end.compact.sum
     end
   end
 end

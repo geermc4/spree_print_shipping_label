@@ -20,9 +20,9 @@ class Spree::ShippingLabel
   private
   def can_items_be_shipped?
     zero_weight_items = get_zero_weight_items
-    zero_value_items = get_zero_value_items
+    #zero_value_items = get_zero_value_items
     errors.add(:base, "Products need to have a weight #{prettify_item_names(zero_weight_items)}") if zero_weight_items.any?
-    errors.add(:base, "Products need to have a value #{prettify_item_names(zero_value_items)}") if zero_value_items.any?
+    #errors.add(:base, "Products need to have a value #{prettify_item_names(zero_value_items)}") if zero_value_items.any?
   end
 
   def prettify_item_names items
@@ -40,6 +40,7 @@ class Spree::ShippingLabel
   def shipment_weight
     self.shipment.line_items.collect(&:variant).collect(&:weight).compact.sum
   end
+
   def shipment_weight_in_oz
     shipment_weight * Spree::ActiveShipping::Config[:unit_multiplier]
   end
@@ -57,8 +58,9 @@ class Spree::ShippingLabel
   end
 
   def get_valid_item_price_from_line_item line_item
-    return line_item.amount if line_item.amount > 0
-    line_item.variant.price
+    #return line_item.amount if line_item.amount > 0
+    #line_item.variant.price
+    line_item.amount
   end
 
   def get_state_from_address address
