@@ -5,10 +5,9 @@ Spree::Admin::OrdersController.class_eval do
     begin
       label_file = shipment.selected_shipping_rate.shipping_label # this also updates the tracking by default
     rescue Spree::LabelError => e
-      raise e
-      #flash[:error] = e.message
-      #redirect_to :back
+      flash[:error] = e.message
+      redirect_to :back
     end
-    send_file label_file, :disposition => 'inline', :type => 'application/pdf' unless label_file.blank?
+    send_file label_file, :disposition => 'inline', :type => Mime::PDF unless label_file.blank?
   end
 end
