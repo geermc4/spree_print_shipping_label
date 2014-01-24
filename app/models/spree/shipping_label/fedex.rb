@@ -24,23 +24,24 @@ module Spree
           :label_stock_type => "PAPER_4X6"
         }
       }
-      details[:customs_clearance] = build_international_node if international?
+      details.merge!(build_international_node) if international?
 
       details
     end
 
     def build_international_node
       {
-        :broker => build_broker_node,
-        :clearance_brokerage => "BROKER_INCLUSIVE",
-        :importer_of_record => build_broker_node,
-        :recipient_customs_id => build_recipient_customs_id_node,
-        :duties_payment => {
-          :payment_type => "RECIPIENT"
-        },
-        :customs_value => build_customs_value_node,
-        :commercial_invoice => build_commercial_invoice_node,
-        :commodities => self.shipment.line_items.collect{ |line_item| comodity(line_item) },
+        :customs_clearance_detail => {
+          :brokers => build_broker_contact_node,
+          :clearance_brokerage => "BROKER_INCLUSIVE",
+          :importer_of_record => build_broker_node,
+          :recipient_customs_id => build_recipient_customs_id_node,
+          :duties_payment => {
+            :payment_type => "RECIPIENT"
+          },
+          :customs_value => build_customs_value_node,
+          :commodities => self.shipment.line_items.collect{ |line_item| comodity(line_item) }
+        }
       }
     end
 
@@ -107,7 +108,7 @@ module Spree
     end
 
     def build_customer_references_node
-      { :type => "INVOICE_NUMBER", :value => "#{self.shipment.number}" }
+      [{ :type => "INVOICE_NUMBER", :value => "#{self.order.number} - #{self.shipment.number}" }]
     end
 
     def build_recipient_customs_id_node
@@ -118,12 +119,10 @@ module Spree
       { :currency => "USD", :amount => self.shipment.item_cost.to_f }
     end
 
-    def build_commercial_invoice_node
+    def build_broker_contact_node
       {
-        :purpose_of_shipment_description => "SOLD",
-        :customer_invoice_number => self.order.number,
-        :originator_name => Spree::PrintShippingLabel::Config[:origin_name],
-        :terms_of_sale => "EXW",
+        :Type => 'IMPORT',
+        :Broker => build_broker_node
       }
     end
 
