@@ -5,6 +5,8 @@ source "http://rubygems.org"
 # development dependencies will be added by default to the :development group.
 gemspec
 
+gem 'fedex', :github => '3drobotics/fedex', :branch => 'master'
+
 # jquery-rails is used by the dummy application
 gem "jquery-rails"
 
