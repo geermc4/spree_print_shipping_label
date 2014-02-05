@@ -114,7 +114,7 @@ module Spree
       response = Nokogiri::XML::Document.parse(raw_response)
       errors = response.search('ErrorMessage')
       #validate errors
-      raise Spree::LabelError.new("Label Response Error: USPS - #{errors.children.first.content}") if errors.present?
+      raise Spree::LabelError.new("#{I18n.t(:label_response_error)}: USPS - #{errors.children.first.content}") if errors.present?
 
       # get label images and parts
       if international?

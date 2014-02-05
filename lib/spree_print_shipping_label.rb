@@ -7,9 +7,11 @@ module SpreePrintShippingLabelExtension
  class Engine < Rails::Engine
     engine_name 'spree_print_shipping_label'
 
-    initializer "spree.print_shipping_label.preferences", :before => :load_config_initializers do |app| #, :after => 'spree.register.calculators' do |app|
+    initializer "spree.print_shipping_label.preferences", :before => :load_config_initializers do |app|
       Spree::PrintShippingLabel::Config = Spree::PrintShippingLabelConfiguration.new
       Spree::PrintShippingLabel::Config[:endicia_url] = Rails.env == 'production' ? "https://labelserver.endicia.com/LabelService/EwsLabelService.asmx/" : "https://www.envmgr.com/LabelService/EwsLabelService.asmx/"
+      Spree::PrintShippingLabel::Config[:requires_export_license] = false
+      Spree::PrintShippingLabel::Config[:enable_eei_shipments] = true
     end
 
     def self.activate

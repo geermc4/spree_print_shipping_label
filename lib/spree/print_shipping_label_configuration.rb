@@ -22,4 +22,7 @@ class Spree::PrintShippingLabelConfiguration < Spree::Preferences::Configuration
   preference :license_number, :string, :default => ''
   preference :certificate_number, :string, :default => ''
   preference :default_path, :string, :default => "public/shipments/"
+
+  preference :requires_export_license, :boolean, :default => false
+  preference :enable_eei_shipments, :boolean, :default => true
 end

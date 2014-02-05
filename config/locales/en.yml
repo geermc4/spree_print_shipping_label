@@ -3,3 +3,6 @@ en:
   api_name: "API Name"
   unable_to_get_label: "Unable to get shipping label"
   tax_note: "Tax ID"
+  eei_restrictions: "EEI shipments aren't enabled for this store"
+  label_response_error: "Label Response Error"
+  eei_not_present: "ITN received from AES when you filed your shipment for the FTR is not present"
