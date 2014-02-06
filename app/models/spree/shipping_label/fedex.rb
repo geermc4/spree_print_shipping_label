@@ -2,6 +2,8 @@ require 'fedex'
 
 module Spree
   class ShippingLabel::Fedex < Spree::ShippingLabel
+    validate :can_items_be_shipped?, strict: true
+
     def request_label update_tracking = true
       label_details = parse_label_response(commit(build_body_node))
       self.file_path = label_details[:label_images]
@@ -12,11 +14,8 @@ module Spree
     private
     def can_items_be_shipped?
       zero_weight_items = get_zero_weight_items
-      #zero_value_items = get_zero_value_items
       errors.add(:base, "Products need to have a weight #{prettify_item_names(zero_weight_items)}") if zero_weight_items.any?
-      #errors.add(:base, "Products need to have a value #{prettify_item_names(zero_value_items)}") if zero_value_items.any?
 
-      # override here because we aren't sure of Endicia is filling out the EEI export documents
       check_eei_restrictions_and_raise_errors if requires_eei?
     end
 
@@ -196,8 +195,8 @@ module Spree
           :weight => { :units => "LB", :value => line_item.variant.weight},
           :quantity => line_item.quantity,
           :quantity_units => line_item.quantity,
-          :unit_price => { :currency => "USD", :amount => price.to_f},
-          :customs_value => { :currency => "USD", :amount => (price * line_item.quantity).to_f}
+          :unit_price => { :currency => "USD", :amount => line_item.price.to_f},
+          :customs_value => { :currency => "USD", :amount => price.to_f}
         }
     end
 
