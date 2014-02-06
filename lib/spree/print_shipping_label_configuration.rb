@@ -25,4 +25,6 @@ class Spree::PrintShippingLabelConfiguration < Spree::Preferences::Configuration
 
   preference :requires_export_license, :boolean, :default => false
   preference :enable_eei_shipments, :boolean, :default => true
+  preference :tin_type_for_eei, :string, :default => "BUSINESS_NATIONAL" # Sample default value
+  preference :tin_number_for_eei, :string, :default => "12345678912" # Sample TIN
 end
