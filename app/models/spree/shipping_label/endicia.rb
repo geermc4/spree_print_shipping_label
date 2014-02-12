@@ -57,7 +57,7 @@ module Spree
         label_request << XmlNode.new('FromCompany', Spree::PrintShippingLabel::Config[:origin_company])
         label_request << XmlNode.new('ReturnAddress1', Spree::PrintShippingLabel::Config[:origin_address])
         label_request << XmlNode.new('FromCity', self.stock_location.city)
-        label_request << XmlNode.new('FromState', self.stock_location.state)
+        label_request << XmlNode.new('FromState', get_state_from_address(self.stock_location))
         label_request << XmlNode.new('FromPostalCode', self.stock_location.zipcode)
         label_request << XmlNode.new('FromPhone', Spree::PrintShippingLabel::Config[:origin_telephone])
 
