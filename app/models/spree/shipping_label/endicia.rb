@@ -89,7 +89,7 @@ module Spree
             # really small and rounding it to 2 digits makes it zero
             weight = (weight.zero?) ? 0.01 : weight
             # round the price value to fit API requirements
-            value = l.price.round(2)
+            value = get_valid_item_price_from_line_item(l).round(2)
             # check if it has price if not then its not a product that can be shipped
             # its a config part and its already defined inside another product
             # or someone forgot to define a price
