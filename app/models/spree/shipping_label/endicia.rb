@@ -14,23 +14,11 @@ module Spree
         label_request << XmlNode.new('LabelSize', Spree::PrintShippingLabel::Config[:label_size])
         label_request << XmlNode.new('ImageFormat', Spree::PrintShippingLabel::Config[:image_format])
         label_request << XmlNode.new('Test', is_this_a_test?)
-        # Form 2976 (short form: use this form if the number of items is 5 or fewer.)
-        # Form 2976-A (long form: use this form if number of items is greater than 5.)
-        # Required when the label subtype is Integrated.
-        # Page 41
 
-        # Values
-          #Form2976
-            #MaxItems: 5
-            #FirstClassMailInternational
-            #PriorityMailInternational (when used with FlatRateEnvelope, FlatRateLegalEnvelope, FlatRatePaddedEnvelope or SmallFlatRateBox)
-          #Form2976A
-            #Max Items: 999
-            #PriorityMailInternational (when used with Parcel, MediumFlatRateBox or LargeFlatRateBox);
-            #ExpressMailInternational (when used with FlatRateEnvelope, FlatRateLegalEnvelope or Parcel)
-        # Page 151
-        # Since we only use Parcel we will always choose Form2976A
-        label_request << XmlNode.new('IntegratedFormType', 'FORM2976A') if international?
+        label_request << build_form_type_node if international?
+
+        label_request << build_mailpiece_shape if first_class_international?
+
         label_request << XmlNode.new('RequesterID', Spree::PrintShippingLabel::Config[:endicia_requester_id])
         label_request << XmlNode.new('AccountID', Spree::PrintShippingLabel::Config[:endicia_account_id])
         label_request << XmlNode.new('PassPhrase', Spree::PrintShippingLabel::Config[:endicia_password])
@@ -110,6 +98,35 @@ module Spree
       end
     end
 
+    def build_form_type_node
+      # Form 2976 (short form: use this form if the number of items is 5 or fewer.)
+      # Form 2976-A (long form: use this form if number of items is greater than 5.)
+      # Required when the label subtype is Integrated.
+      # Page 41
+
+      # Values
+        #Form2976
+          #MaxItems: 5
+          #FirstClassMailInternational
+          #FirstClassPackageInternationalService
+          #PriorityMailInternational (when used with FlatRateEnvelope, FlatRateLegalEnvelope, FlatRatePaddedEnvelope or SmallFlatRateBox)
+        #Form2976A
+          #Max Items: 999
+          #PriorityMailInternational (when used with Parcel, MediumFlatRateBox or LargeFlatRateBox);
+          #ExpressMailInternational (when used with FlatRateEnvelope, FlatRateLegalEnvelope or Parcel)
+      # Page 151
+      # Since we only use Parcel we will always choose Form2976A
+      if first_class_international? && self.shipment.line_items.count <= 5
+        return XmlNode.new('IntegratedFormType', 'FORM2976')
+      end
+
+      XmlNode.new('IntegratedFormType', 'FORM2976A')
+    end
+
+    def build_mailpiece_shape
+      XmlNode.new('MailpieceShape', 'Parcel')
+    end
+
     def parse_label_response raw_response
       response = Nokogiri::XML::Document.parse(raw_response)
       errors = response.search('ErrorMessage')
@@ -143,6 +160,10 @@ module Spree
 
     def is_this_a_test?
       (Spree::ActiveShipping::Config[:test_mode]) ? 'Yes' : 'No'
+    end
+
+    def first_class_international?
+       ([self.shipment.shipping_method.api_name] & ['FirstClassMailInternational', 'FirstClassPackageInternationalService']).any?
     end
 
     def get_endicia_label_type
@@ -184,10 +205,8 @@ module Spree
     # don't affect the weight calculations
     def shipment_weight
       self.shipment.line_items.collect(&:variant).collect do |variant|
-        # round here since we have to report the individual weight
-        # of each variant with only 2 decimals
-        rounded_weight = variant.weight.round(2)
-        (rounded_weight.zero?) ? 0.01 : rounded_weight
+        weight = variant.weight.to_f
+        (weight.zero?) ? 0.01 : weight
       end.compact.sum
     end
   end
