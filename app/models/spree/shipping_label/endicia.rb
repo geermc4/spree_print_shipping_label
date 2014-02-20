@@ -116,9 +116,7 @@ module Spree
           #ExpressMailInternational (when used with FlatRateEnvelope, FlatRateLegalEnvelope or Parcel)
       # Page 151
       # Since we only use Parcel we will always choose Form2976A
-      if first_class_international? && self.shipment.line_items.count <= 5
-        return XmlNode.new('IntegratedFormType', 'FORM2976')
-      end
+      return XmlNode.new('IntegratedFormType', 'FORM2976') if first_class_international?
 
       XmlNode.new('IntegratedFormType', 'FORM2976A')
     end
