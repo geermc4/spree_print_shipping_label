@@ -202,6 +202,7 @@ module Spree
     # make sure the round weight requirements for this serivce
     # don't affect the weight calculations
     def shipment_weight
+      return self.declared_weight if declared_weight
       self.shipment.line_items.collect(&:variant).collect do |variant|
         weight = variant.weight.to_f
         (weight.zero?) ? 0.01 : weight

@@ -1,18 +1,19 @@
 class Spree::ShippingLabel
   include ActiveModel::Validations
-  attr_accessor :shipment, :order, :user, :shipping_address, :stock_location, :tracking, :label_response, :file_path, :eei_statement
+  attr_accessor :shipment, :order, :user, :shipping_address, :stock_location, :tracking, :label_response, :file_path, :eei_statement, :declared_weight
   validate :can_items_be_shipped?, strict: true
 
   EEI_EXEMPT = %w(CA AS MP GU)
   EEI_REQUIRED = %w(CU IR KP SD SY)
 
-  def initialize shipment, eei_statement = ""
+  def initialize shipment, declared_weight = nil, eei_statement = ""
     self.shipment = shipment
     self.order = self.shipment.order
     self.stock_location = self.shipment.stock_location
     self.user = self.order.user unless self.order.user.nil?
     self.shipping_address = self.order.shipping_address
     self.eei_statement = eei_statement
+    self.declared_weight = declared_weight
     @path = Spree::PrintShippingLabel::Config[:default_path]
     @unit = Spree::ActiveShipping::Config[:units]
   end
@@ -46,6 +47,7 @@ class Spree::ShippingLabel
   end
 
   def shipment_weight
+    return self.declared_weight if declared_weight
     self.shipment.line_items.collect(&:variant).collect(&:weight).compact.sum
   end
 
