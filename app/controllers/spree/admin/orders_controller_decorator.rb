@@ -1,13 +1,14 @@
 Spree::Admin::OrdersController.class_eval do
   def label
     shipment = Spree::Shipment.find_by_number(params[:shipment_id])
-    label_file = ""
+    declared_weight = params[:declared_weight]
     begin
-      label_file = shipment.selected_shipping_rate.shipping_label # this also updates the tracking by default
-    rescue Spree::LabelError => e
-      flash[:error] = e.message
-      redirect_to :back
+      # this also updates the tracking by default
+      declared_weight = declared_weight.to_f if declared_weight.present? # leave nil if it's not defined
+      send_file shipment.selected_shipping_rate.shipping_label(true, declared_weight), :disposition => 'inline', :type => Mime::PDF
+    rescue Spree::LabelError => exception
+      flash[:error] = exception.message
+      redirect_to edit_admin_order_path(shipment.order)
     end
-    send_file label_file, :disposition => 'inline', :type => Mime::PDF unless label_file.blank?
   end
 end
