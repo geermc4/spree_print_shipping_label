@@ -202,9 +202,9 @@ module Spree
     # make sure the round weight requirements for this serivce
     # don't affect the weight calculations
     def shipment_weight
-      return self.declared_weight if declared_weight
-      self.shipment.line_items.collect(&:variant).collect do |variant|
-        weight = variant.weight.to_f
+      return self.declared_weight if self.declared_weight
+      self.shipment.inventory_units.map do |variant|
+        weight = variant.try(:weight).to_f
         (weight.zero?) ? 0.01 : weight
       end.compact.sum
     end

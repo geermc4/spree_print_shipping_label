@@ -129,7 +129,7 @@ module Spree
         :state => get_state_from_address(self.shipping_address),
         :postal_code => self.shipping_address.zipcode.gsub(/\-|\s/, ''),
         :country_code => self.shipping_address.country.iso,
-        :residential => self.shipping_address.company.blank? ? "true" : "false"
+        :residential => is_residential? ? "true" : "false"
       }
     end
 
@@ -218,6 +218,11 @@ module Spree
     def fedex_dimension_units
       return "IN" if @unit == 'imperial'
       return "CM" if @unit == 'metric'
+    end
+
+    def is_residential?
+      return true if self.shipment.shipping_method.api_name == 'GROUND_HOME_DELIVERY'
+      self.shipping_address.company.blank?
     end
 
     def spit_file response, file_name

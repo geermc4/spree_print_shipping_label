@@ -47,8 +47,8 @@ class Spree::ShippingLabel
   end
 
   def shipment_weight
-    return self.declared_weight if declared_weight
-    self.shipment.line_items.collect(&:variant).collect(&:weight).compact.sum
+    return self.declared_weight if self.declared_weight
+    self.shipment.inventory_units.map(&:variant).map(&:weight).compact.sum
   end
 
   def shipment_weight_in_oz
