@@ -111,7 +111,7 @@ module Spree
         :name => '',
         :company => Spree::PrintShippingLabel::Config[:origin_company],
         :phone_number => Spree::PrintShippingLabel::Config[:origin_telephone],
-        :address => Spree::PrintShippingLabel::Config[:origin_address],
+        :address => "#{self.stock_location.address1}, #{self.stock_location.address2}",
         :city => self.stock_location.city,
         :state => get_state_from_address(self.stock_location),
         :postal_code => self.stock_location.zipcode,
@@ -201,12 +201,14 @@ module Spree
     end
 
     def get_fedex_object
+      country_key = self.stock_location.admin_name.downcase.to_sym
+
       ::Fedex::Shipment.new(
-        :key => Spree::ActiveShipping::Config[:fedex_key],
-        :password => Spree::ActiveShipping::Config[:fedex_password],
-        :account_number => Spree::ActiveShipping::Config[:fedex_account],
-        :meter => Spree::ActiveShipping::Config[:fedex_login],
-        :mode => ( Spree::ActiveShipping::Config[:test_mode] ? 'development' : 'production' )
+        :key            => Spree::ActiveShipping::Config[country_key][:fedex_key],
+        :password       => Spree::ActiveShipping::Config[country_key][:fedex_password],
+        :account_number => Spree::ActiveShipping::Config[country_key][:fedex_account],
+        :meter          => Spree::ActiveShipping::Config[country_key][:fedex_login],
+        :mode           => 'production'
       )
     end
 
