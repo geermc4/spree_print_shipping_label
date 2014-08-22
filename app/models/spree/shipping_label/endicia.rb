@@ -85,7 +85,7 @@ module Spree
               customs_items << XmlNode.new('CustomsItem') do |custom_item|
                 # Description has a limit of 50 characters
                 custom_item << XmlNode.new('Description', l.product.name.slice(0..49))
-                custom_item << XmlNode.new('Quantity', l.quantity)
+                custom_item << XmlNode.new('Quantity', @shipment.inventory_units.where(variant_id: l.variant_id).size)
                 # Weight can't be 0, and its measured in oz
                 custom_item << XmlNode.new('Weight', weight)
                 custom_item << XmlNode.new('Value', value)
